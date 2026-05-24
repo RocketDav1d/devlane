@@ -15,11 +15,11 @@ It contains:
 Run it from the Devlane repo:
 
 ```bash
-DEVLANE_HOME=/private/tmp/devlane-demo node ../../src/cli/index.js install-codex --project .
-DEVLANE_HOME=/private/tmp/devlane-demo node ../../src/cli/index.js up --project .
-DEVLANE_HOME=/private/tmp/devlane-demo node ../../src/cli/index.js status --project .
-DEVLANE_HOME=/private/tmp/devlane-demo node ../../src/cli/index.js reset-db --project .
-DEVLANE_HOME=/private/tmp/devlane-demo node ../../src/cli/index.js destroy --project .
+DEVLANE_HOME=/private/tmp/devlane-demo npm --prefix ../.. run devlane -- install-codex --project .
+DEVLANE_HOME=/private/tmp/devlane-demo npm --prefix ../.. run devlane -- up --project .
+DEVLANE_HOME=/private/tmp/devlane-demo npm --prefix ../.. run devlane -- status --project .
+DEVLANE_HOME=/private/tmp/devlane-demo npm --prefix ../.. run devlane -- reset-db --project .
+DEVLANE_HOME=/private/tmp/devlane-demo npm --prefix ../.. run devlane -- destroy --project .
 ```
 
 Once it is running:
