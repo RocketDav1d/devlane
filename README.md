@@ -41,29 +41,32 @@ The current implementation is an MVP vertical slice:
 
 ```bash
 npm run verify
+npm run smoke:package
 ```
 
-Run the example environment:
+From a source checkout, run the example environment through npm so the command path matches the packaged CLI:
 
 ```bash
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js up --project fixtures/node-basic
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js status --project fixtures/node-basic
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js logs api --project fixtures/node-basic
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js restart api --project fixtures/node-basic
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js destroy --project fixtures/node-basic
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- up --project fixtures/node-basic
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- status --project fixtures/node-basic
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- logs api --project fixtures/node-basic
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- restart api --project fixtures/node-basic
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- destroy --project fixtures/node-basic
 ```
+
+Once installed as a package, use `devlane` directly instead of `npm run devlane --`.
 
 Run the daemon in a separate terminal:
 
 ```bash
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js daemon start
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- daemon start
 ```
 
 Or run it in the background:
 
 ```bash
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js daemon start --background
-DEVLANE_HOME=/private/tmp/devlane-demo node src/cli/index.js daemon stop
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- daemon start --background
+DEVLANE_HOME=/private/tmp/devlane-demo npm run devlane -- daemon stop
 ```
 
 Commands automatically try the daemon first. If it is not running, they fall back to direct local execution.
@@ -104,7 +107,7 @@ database:
 Then run:
 
 ```bash
-node src/cli/index.js reset-db --project /path/to/repo
+devlane reset-db --project /path/to/repo
 ```
 
 ## Failure Output
@@ -136,14 +139,14 @@ The same structured errors are preserved through daemon RPC, so CLI commands beh
 These are the commands Codex integration assets call:
 
 ```bash
-node src/cli/index.js codex setup --project "$CODEX_WORKTREE_PATH"
-node src/cli/index.js codex context --project "$CODEX_WORKTREE_PATH"
+devlane codex setup --project "$CODEX_WORKTREE_PATH"
+devlane codex context --project "$CODEX_WORKTREE_PATH"
 ```
 
 Install Codex integration assets into a repo:
 
 ```bash
-node src/cli/index.js install-codex --project /path/to/repo
+devlane install-codex --project /path/to/repo
 ```
 
 This writes:
@@ -162,8 +165,8 @@ For automatic Codex worktree provisioning, Codex should discover `.codex/environ
 Verify Codex integration:
 
 ```bash
-node src/cli/index.js doctor --codex --project /path/to/repo
-node src/cli/index.js codex verify --project /path/to/repo
+devlane doctor --codex --project /path/to/repo
+devlane codex verify --project /path/to/repo
 ```
 
 Verification checks:
@@ -193,9 +196,9 @@ The demo repo under `examples/codex-node-postgres` shows the intended Codex flow
 
 ```bash
 cd examples/codex-node-postgres
-../../src/cli/index.js install-codex --project .
-../../src/cli/index.js codex verify --project .
-../../src/cli/index.js up --project .
+npm --prefix ../.. run devlane -- install-codex --project .
+npm --prefix ../.. run devlane -- codex verify --project .
+npm --prefix ../.. run devlane -- up --project .
 ```
 
 The Postgres demo requires local `postgres`, `initdb`, `pg_isready`, `psql`, and `createdb` binaries.
@@ -222,7 +225,7 @@ Its setup path runs SQL migrations and seed data before the API is considered he
 Example:
 
 ```bash
-node src/cli/index.js init --detect --project /path/to/repo
+devlane init --detect --project /path/to/repo
 ```
 
 ## Runtime Status

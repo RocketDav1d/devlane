@@ -343,6 +343,15 @@ function resolveDevlaneInvocation() {
   }
 
   const entrypoint = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../index.js");
+  const packageRoot = path.resolve(path.dirname(entrypoint), "../..");
+  if (!fs.existsSync(path.join(packageRoot, ".git"))) {
+    return {
+      shell: "devlane",
+      command: "devlane",
+      args: []
+    };
+  }
+
   return {
     shell: `node ${shellQuote(entrypoint)}`,
     command: "node",
