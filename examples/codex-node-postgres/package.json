@@ -1,0 +1,12 @@
+{
+  "name": "codex-node-postgres-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:api": "node scripts/api.js",
+    "dev:postgres": "node scripts/postgres-service.js",
+    "db:migrate": "node scripts/db/migrate.js",
+    "db:seed": "node scripts/db/seed.js",
+    "db:reset": "node scripts/reset-db.js"
+  }
+}

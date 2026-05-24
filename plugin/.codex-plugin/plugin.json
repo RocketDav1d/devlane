@@ -1,0 +1,12 @@
+{
+  "name": "devlane",
+  "version": "0.1.0",
+  "description": "Ready-to-use backend environments for Codex worktrees.",
+  "skills": ["skills/devlane"],
+  "mcpServers": {
+    "devlane": {
+      "command": "devlane",
+      "args": ["mcp", "serve"]
+    }
+  }
+}

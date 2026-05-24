@@ -1,0 +1,42 @@
+version: 1
+
+runtime:
+  driver: process
+
+env:
+  DATABASE_URL: "${services.postgres.url}"
+
+services:
+  postgres:
+    type: postgres
+    command: "node scripts/postgres-service.js"
+    port: 5432
+    url: "postgres://localhost:${service.hostPort}/app"
+    healthcheck:
+      command: "node scripts/db/check-ready.js"
+      interval_ms: 100
+      timeout_ms: 10000
+
+apps:
+  api:
+    command: "node scripts/api.js"
+    port: 3201
+    depends_on:
+      - postgres
+    healthcheck:
+      url: "http://localhost:${apps.api.hostPort}/health"
+      interval_ms: 100
+      timeout_ms: 5000
+
+database:
+  reset:
+    commands:
+      - "node scripts/reset-db.js"
+
+setup:
+  commands: []
+
+context:
+  files:
+    - .devlane/context.md
+    - .env.local

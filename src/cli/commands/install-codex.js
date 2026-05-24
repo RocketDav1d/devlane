@@ -1,0 +1,363 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { projectPathFromArgs } from "../args.js";
+import { ensureDir } from "../../shared/fs.js";
+
+export async function installCodexCommand(args) {
+  const projectPath = path.resolve(projectPathFromArgs(args));
+  const codexDir = path.join(projectPath, ".codex", "devlane");
+  const codexEnvironmentsDir = path.join(projectPath, ".codex", "environments");
+  const codexConfigPath = path.join(projectPath, ".codex", "config.toml");
+  const hooksPath = path.join(projectPath, ".codex", "hooks.json");
+  const skillDir = path.join(projectPath, ".agents", "skills", "devlane");
+
+  ensureDir(codexDir);
+  ensureDir(codexEnvironmentsDir);
+  ensureDir(path.join(skillDir, "agents"));
+  ensureDir(path.dirname(codexConfigPath));
+
+  const setupPath = path.join(codexDir, "setup.sh");
+  const cleanupPath = path.join(codexDir, "cleanup.sh");
+  const hookPath = path.join(codexDir, "session-start-hook.sh");
+  const environmentSnippetsPath = path.join(codexDir, "codex-environment-snippets.md");
+  const environmentConfigPath = path.join(codexEnvironmentsDir, "environment.toml");
+  const readmePath = path.join(codexDir, "README.md");
+  const skillPath = path.join(skillDir, "SKILL.md");
+  const skillMetaPath = path.join(skillDir, "agents", "openai.yaml");
+  const devlaneInvocation = resolveDevlaneInvocation();
+
+  fs.writeFileSync(setupPath, setupScript(devlaneInvocation));
+  fs.writeFileSync(cleanupPath, cleanupScript(devlaneInvocation));
+  fs.writeFileSync(hookPath, sessionStartHook(devlaneInvocation));
+  fs.writeFileSync(environmentSnippetsPath, codexEnvironmentSnippets({
+    devlaneInvocation
+  }));
+  fs.writeFileSync(environmentConfigPath, codexEnvironmentToml(path.basename(projectPath)));
+  fs.writeFileSync(readmePath, codexReadme());
+  fs.writeFileSync(skillPath, skillMarkdown());
+  fs.writeFileSync(skillMetaPath, skillMetadata());
+  upsertHooksJson(hooksPath);
+  upsertConfigToml(codexConfigPath, devlaneInvocation);
+  fs.chmodSync(setupPath, 0o755);
+  fs.chmodSync(cleanupPath, 0o755);
+  fs.chmodSync(hookPath, 0o755);
+
+  process.stdout.write(`Installed Codex integration assets:
+- ${setupPath}
+- ${cleanupPath}
+- ${hookPath}
+- ${environmentSnippetsPath}
+- ${environmentConfigPath}
+- ${hooksPath}
+- ${codexConfigPath}
+- ${skillPath}
+
+Next: Codex should discover this Local Environment from:
+${environmentConfigPath}
+
+If it does not appear in Codex app Settings -> Environments, configure it with the snippets in:
+${environmentSnippetsPath}
+
+The setup script is:
+${setupPath}
+
+The SessionStart hook only injects Devlane context. The Local Environment setup script is what provisions each Codex worktree.
+The SessionStart hook and MCP server config were written to project-local Codex config files.
+Codex may ask you to trust project-local hooks before they run.
+`);
+}
+
+function setupScript(devlaneInvocation) {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+worktree="\${CODEX_WORKTREE_PATH:-\${1:-$PWD}}"
+cd "$worktree"
+
+${devlaneInvocation.shell} codex setup --project "$worktree"
+`;
+}
+
+function cleanupScript(devlaneInvocation) {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+worktree="\${CODEX_WORKTREE_PATH:-\${1:-$PWD}}"
+cd "$worktree"
+
+${devlaneInvocation.shell} destroy --project "$worktree"
+`;
+}
+
+function sessionStartHook(devlaneInvocation) {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+worktree="\${CODEX_WORKTREE_PATH:-\${1:-$PWD}}"
+cd "$worktree"
+
+${devlaneInvocation.shell} codex context --project "$worktree"
+`;
+}
+
+function codexEnvironmentSnippets({ devlaneInvocation }) {
+  return `# Devlane Codex Environment Snippets
+
+Use these in Codex Settings -> Environments for this project.
+
+The scripts use \`CODEX_WORKTREE_PATH\`, so one project environment entry can provision each Codex-created worktree.
+
+## Setup Script
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+"$worktree/.codex/devlane/setup.sh" "$worktree"
+\`\`\`
+
+## Cleanup Script
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+"$worktree/.codex/devlane/cleanup.sh" "$worktree"
+\`\`\`
+
+## Actions
+
+### Devlane Status
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+${devlaneInvocation.shell} status --project "$worktree"
+\`\`\`
+
+### Devlane Logs
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+${devlaneInvocation.shell} logs --project "$worktree" --tail 200
+\`\`\`
+
+### Restart Devlane
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+${devlaneInvocation.shell} restart --project "$worktree"
+\`\`\`
+
+### Reset Database
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+${devlaneInvocation.shell} reset-db --project "$worktree"
+\`\`\`
+
+### Destroy Devlane
+
+\`\`\`bash
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+"$worktree/.codex/devlane/cleanup.sh" "$worktree"
+\`\`\`
+`;
+}
+
+function codexEnvironmentToml(name) {
+  return `# THIS IS AUTOGENERATED. DO NOT EDIT MANUALLY
+version = 1
+name = ${tomlString(name)}
+
+[setup]
+script = '''
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+"$worktree/.codex/devlane/setup.sh" "$worktree"
+'''
+
+[cleanup]
+script = '''
+set -euo pipefail
+worktree="\${CODEX_WORKTREE_PATH:-$PWD}"
+"$worktree/.codex/devlane/cleanup.sh" "$worktree"
+'''
+`;
+}
+
+function codexReadme() {
+  return `# Devlane Codex Integration
+
+This directory contains generated Codex integration assets.
+
+- \`setup.sh\` provisions the Devlane environment for a new worktree.
+- \`cleanup.sh\` destroys the Devlane environment for a worktree.
+- \`session-start-hook.sh\` emits live environment context for Codex.
+- \`codex-environment-snippets.md\` contains the Codex Settings -> Environments setup, cleanup, and action scripts.
+- \`.codex/environments/environment.toml\` registers the Codex Local Environment for this project.
+
+## Codex Setup
+
+For automatic provisioning, Codex should discover this Local Environment file:
+
+\`\`\`bash
+.codex/environments/environment.toml
+\`\`\`
+
+If it does not appear in Codex app Settings -> Environments, configure it manually with the snippets in:
+
+\`\`\`bash
+.codex/devlane/codex-environment-snippets.md
+\`\`\`
+
+The setup script is:
+
+\`\`\`bash
+.codex/devlane/setup.sh
+\`\`\`
+
+The cleanup script is:
+
+\`\`\`bash
+.codex/devlane/cleanup.sh
+\`\`\`
+
+The SessionStart hook is registered in \`.codex/hooks.json\` and runs:
+
+\`\`\`bash
+.codex/devlane/session-start-hook.sh
+\`\`\`
+
+The hook is context-only. It does not create VMs or start backend processes; Codex Local Environment setup does that.
+`;
+}
+
+function skillMarkdown() {
+  return `---
+name: devlane
+description: Use when working in a repository that has a Devlane environment. Helps Codex inspect service status, read logs, reset databases, and avoid manually recreating local infrastructure.
+---
+
+When this repository has a Devlane environment:
+
+1. Check Devlane status before starting backend services manually.
+2. Use existing URLs from \`.devlane/context.md\` and \`.env.local\`.
+3. Use Devlane logs to inspect backend, database, or worker failures.
+4. Use Devlane restart commands instead of starting duplicate service processes.
+5. Use Devlane reset commands when test data or migrations need a clean database.
+6. If no Devlane environment is active, run \`.codex/devlane/setup.sh\` once before starting backend services manually.
+7. Do not run Docker Compose or create new Postgres/Redis instances unless the user explicitly asks.
+`;
+}
+
+function skillMetadata() {
+  return `interface:
+  display_name: Devlane
+  short_description: Ready-made backend environments for Codex worktrees.
+  brand_color: "#2563EB"
+
+policy:
+  allow_implicit_invocation: true
+`;
+}
+
+function upsertHooksJson(hooksPath) {
+  const command = shellQuote(path.join(".codex", "devlane", "session-start-hook.sh"));
+  const hooksConfig = fs.existsSync(hooksPath)
+    ? JSON.parse(fs.readFileSync(hooksPath, "utf8"))
+    : { hooks: {} };
+
+  hooksConfig.hooks ??= {};
+  hooksConfig.hooks.SessionStart ??= [];
+
+  const existingHook = findRegisteredHook(hooksConfig.hooks.SessionStart);
+  if (existingHook) {
+    existingHook.type = "command";
+    existingHook.async = false;
+    existingHook.command = command;
+    existingHook.statusMessage ??= "Loading Devlane environment context";
+  } else {
+    hooksConfig.hooks.SessionStart.push({
+      matcher: "startup|resume",
+      hooks: [
+        {
+          type: "command",
+          async: false,
+          command,
+          statusMessage: "Loading Devlane environment context"
+        }
+      ]
+    });
+  }
+
+  fs.writeFileSync(hooksPath, `${JSON.stringify(hooksConfig, null, 2)}\n`);
+}
+
+function findRegisteredHook(sessionStartHooks) {
+  for (const entry of sessionStartHooks) {
+    for (const hook of entry.hooks ?? []) {
+      if (String(hook.command ?? "").includes("session-start-hook.sh")) {
+        return hook;
+      }
+    }
+  }
+
+  return null;
+}
+
+function upsertConfigToml(configPath, devlaneInvocation) {
+  const markerStart = "# >>> devlane";
+  const markerEnd = "# <<< devlane";
+  const existing = fs.existsSync(configPath) ? fs.readFileSync(configPath, "utf8") : "";
+  const block = `${markerStart}
+[mcp_servers.devlane]
+command = ${tomlString(devlaneInvocation.command)}
+args = [${devlaneInvocation.args
+    .concat(["mcp", "serve"])
+    .map(tomlString)
+    .join(", ")}]
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "auto"
+${markerEnd}
+`;
+
+  const next = existing.includes(markerStart)
+    ? existing.replace(new RegExp(`${escapeRegExp(markerStart)}[\\s\\S]*?${escapeRegExp(markerEnd)}\\n?`), block)
+    : `${existing.trimEnd()}${existing.trim() ? "\n\n" : ""}${block}`;
+
+  fs.writeFileSync(configPath, next);
+}
+
+function resolveDevlaneInvocation() {
+  if (process.env.DEVLANE_INSTALL_COMMAND) {
+    return {
+      shell: process.env.DEVLANE_INSTALL_COMMAND,
+      command: process.env.DEVLANE_INSTALL_COMMAND,
+      args: []
+    };
+  }
+
+  const entrypoint = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../index.js");
+  return {
+    shell: `node ${shellQuote(entrypoint)}`,
+    command: "node",
+    args: [entrypoint]
+  };
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", "'\\''")}'`;
+}
+
+function tomlString(value) {
+  return JSON.stringify(value);
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

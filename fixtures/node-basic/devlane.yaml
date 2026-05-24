@@ -1,0 +1,21 @@
+version: 1
+
+runtime:
+  driver: process
+
+apps:
+  api:
+    command: "node scripts/server.js"
+    port: 3001
+    healthcheck:
+      url: "http://localhost:${apps.api.hostPort}/health"
+      interval_ms: 100
+      timeout_ms: 5000
+
+setup:
+  commands: []
+
+context:
+  files:
+    - .devlane/context.md
+    - .env.local

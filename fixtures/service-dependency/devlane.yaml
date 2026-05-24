@@ -1,0 +1,33 @@
+version: 1
+
+runtime:
+  driver: process
+
+services:
+  upstream:
+    command: "node scripts/upstream-service.js"
+    port: 3101
+    url: "http://localhost:${service.hostPort}"
+    healthcheck:
+      url: "http://localhost:${services.upstream.hostPort}/health"
+      interval_ms: 100
+      timeout_ms: 5000
+
+apps:
+  api:
+    command: "node scripts/api.js"
+    port: 3102
+    depends_on:
+      - upstream
+    healthcheck:
+      url: "http://localhost:${apps.api.hostPort}/health"
+      interval_ms: 100
+      timeout_ms: 5000
+
+setup:
+  commands: []
+
+context:
+  files:
+    - .devlane/context.md
+    - .env.local

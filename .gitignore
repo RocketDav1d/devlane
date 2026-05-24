@@ -1,0 +1,5 @@
+.devlane/
+.env.local
+node_modules/
+coverage/
+devlane-codex-smol-test/

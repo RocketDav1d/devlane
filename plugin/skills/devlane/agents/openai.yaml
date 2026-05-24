@@ -1,0 +1,7 @@
+interface:
+  display_name: Devlane
+  short_description: Ready-made backend environments for Codex worktrees.
+  brand_color: "#2563EB"
+
+policy:
+  allow_implicit_invocation: true

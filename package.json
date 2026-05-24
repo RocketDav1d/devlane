@@ -1,0 +1,36 @@
+{
+  "name": "devlane",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Ready-to-use local backend environments for coding agent worktrees.",
+  "license": "UNLICENSED",
+  "bin": {
+    "devlane": "./src/cli/index.js"
+  },
+  "files": [
+    "src",
+    "plugin",
+    "examples/codex-node-postgres",
+    "README.md",
+    "DEVLANE_IMPLEMENTATION.md"
+  ],
+  "scripts": {
+    "devlane": "node ./src/cli/index.js",
+    "test": "node --test --test-concurrency=1",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^6.0.3"
+  }
+}
